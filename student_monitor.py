@@ -30,7 +30,7 @@ def check_student_alerts():
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
 
-        ## 1. Check for Low Performance
+        ## 1. Check for Low Performance (Grade checker)
         cursor.execute('''
             SELECT s.StudentID, s.StudentName, ROUND(AVG(g.Grade), 2) AS AverageGrade
             FROM Students s
