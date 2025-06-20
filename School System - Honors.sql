@@ -9,7 +9,6 @@
     Isaiah Adams
 */
 
-drop database SchoolSystem;
 create database SchoolSystem;
 use SchoolSystem;
 
