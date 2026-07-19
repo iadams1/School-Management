@@ -1,0 +1,182 @@
+School Management Database System Documentation
+
+
+
+1. Purpose & Scope -----------------------------
+This document details the design, implementation, and operational guidance for the SchoolSystem database, 
+developed as part of the COMS-3233 honors project. It covers:
+
+	* High‑level architecture to show how entities interrelate.
+	* Data model specifics: tables, keys, and normalization.
+	* Security controls: encryption, access control, and audit logging.
+	* User roles and the custom database views they rely on.
+	* Automated routines: stored procedures, triggers, and external scripts.
+	* How‑to examples for typical administrative tasks.
+
+This reference is aimed at database administrators, developers, and advanced users managing 
+day‑to‑day operations or extending functionality.
+
+
+2. Schema Overview -----------------------------
+The schema is logically divided into six modules, minimizing dependencies and simplifying maintenance:
+
+	* Core Entities: Captures foundational data—Campuses, Students, Guardians, 
+	                 Staff—and their relationships via junction tables.
+	* Academic Data: Manages Courses, prerequisites, scheduling (SectionTimes), 
+			 enrollment history, and grading.
+	* Attendance Management: Logs daily presence for both students and staff in 
+			 AttendanceRecords.
+	* Financial Tracking: Records StudentPayments, defines ExpenseTypes, and tracks 
+		         expenditures through CampusExpenses.
+	* Events & Facility Administration: Catalogs SchoolEvents by type and date, inventories 
+			 Facilities, schedules usage, and logs maintenance activities.
+	* Security & Audit: Maintains login credentials in Users, enforces encryption, implements 
+			 RBAC, and captures all data changes in AuditLogs.
+
+Foreign keys ensure referential integrity; all tables adhere to Third Normal Form to avoid redundancy.
+
+
+3. Table Descriptions -----------------------------
+
+	* Campuses (CampusID): Stores campus metadata including CampusName, Location, CampusContact, and MonthlyBudget.
+
+	* Students (StudentID): Contains personal details (StudentName, DateOfBirth, EnrollmentDate), with encrypted 
+	  PhoneNumber and Email (auto-increment starting at 1000).
+
+	* Guardians (GuardianID): Parallel structure to Students; contact fields also encrypted.
+
+	* Staff (StaffID): Records employee information, StaffRole enum (Admin, Teacher, Clerk), encrypted 
+	  contact fields, and auto-increment from 2000.
+
+	* SchoolRecords: Links Students to Campuses; supports multiple enrollments.
+
+	* StudentGuardians: Links Students with one or more Guardians.
+
+	* PersonContacts: Centralizes encrypted contact data for any person type (Student, Guardian, Staff).
+
+	* Courses (CourseID): Catalogs course offerings with descriptions, credit hours, auto-increment base 4000.
+
+	* CoursePrerequisites: Implements self-referencing foreign keys to define requirement chains.
+
+	* SectionTimes: Schedules course offerings by campus, teacher, weekday, and time window, with semester start/end dates.
+
+	* StudentClassHistory: Maintains a history of each student’s enrollment in specific sections.
+
+	* GradeReports: Records individual coursework grades, type (Assignment, Quiz, Exam, etc.), and numeric score.
+
+	* AttendanceRecords: Flexible table that logs status (Present, Absent, Late) for either a student or staff 
+	  member on a given date.
+
+	* StudentPayments: Tracks payment details (PaymentDate, Amount, PaymentMode, PaymentStatus).
+
+	* ExpenseTypes: Defines standardized categories (e.g., Utilities, Maintenance).
+
+	* CampusExpenses: Associates expenses with campuses and types, used for budget reconciliation.
+
+	* EventTypes & SchoolEvents: Classify and schedule events; EventTime and EventDescription provide context.
+
+	* Facilities, FacilityUsage, FacilityMaintenance: Manage physical assets, bookings, and maintenance 
+	  logs with cost tracking.
+
+	* Users: Maps MySQL login names to Staff records; stores bcrypt-hashed UserPassword.
+
+	* AuditLogs: Captures every INSERT, UPDATE, and DELETE with user, timestamp, affected table, 
+	  and a descriptive Details text.
+
+
+4. Security Measures & Best Practices -----------------------------
+
+	* Field Encryption: Uses AES_ENCRYPT/AES_DECRYPT for sensitive fields (PhoneNumber, Email, Salary). 
+	  Keys are held in session variables (@key_phone, @key_email, @key_salary) and should be rotated periodically.
+
+	* Role‑Based Access Control: Three roles (Admin, Teacher, Clerk) grant least privilege via database-level grants and custom views.
+
+	* Audit Triggers: After‑action triggers on all base tables automatically insert descriptive entries into AuditLogs.
+
+	* Integrity Triggers: PreventScheduleConflict triggers on SectionTimes enforce no overlapping classes for a given teacher on the same day.
+
+	* Password Management: External script (bcrypt_password_hasher.py) ensures all user passwords are securely hashed with bcrypt.
+
+
+5. User Roles & Views -----------------------------
+
+	* Admin    Views -> (CampusFeeSummary, StaffAttendanceSummary, StudentsPerformanceSummary)          Permissions: Full DDL/DML
+
+	* Teacher  Views -> (TeacherGradeView, TeacherClassList, TeacherAttendanceView) 	            Permissions: SELECT/UPDATE grades & attendance
+
+	* Clerk    Views -> (ClerkStudentRoster, ClerkFeeSummary, MonthlyBudgetModule, AnnualBudgetModule)  Permissions: SELECT, INSERT student & finance
+
+Each view filters data to the current user’s scope, simplifying queries.
+
+
+6. Automation & Utilities -----------------------------
+
+Stored Procedures
+
+	* CreateNewUser(p_StaffID, p_Username, p_UserPassword): Inserts into Users, creates MySQL account, assigns the correct role.
+	* StudentFullClassReport(g_StudentID): Calculates average grade and total assignments.
+	* StudentClassSectionReport(g_StudentID, g_SectionID): Section-level performance stats.
+
+Triggers: Automatically populate AuditLogs and prevent conflicting schedules.
+
+Python Scripts
+
+	* generate_school_report.py: Connects via mysql-connector-python, compiles financial and academic metrics, outputs timestamped PDF using fpdf.
+	* student_monitor.py: Continuously polls critical attendance/grade thresholds, raises system alerts via tkinter and winsound.
+	* bcrypt_password_hasher.py: Monitors Users, hashes new plain‑text passwords with bcrypt, and updates the table.
+
+9. User Guides for Scripts -----------------------------
+
+	9.1 generate_school_report.py
+
+		1. Install dependencies:
+			* pip install mysql-connector-python fpdf
+
+		2. Configure keys: Ensure @key_phone, @key_email, @key_salary are set in MySQL session or modify script constants.
+
+		3. Run script:
+			* py generate_school_report.py
+
+			- Enter MySQL credentials when prompted.
+			- Output: PDF saved as school_report_<YYYYMMDD_HHMMSS>.pdf in your Downloads folder.
+
+		4. Customize sections: Edit SECTIONS list in the script to enable/disable report modules.
+
+	----
+
+	9.2 student_monitor.py
+
+		1. Dependencies:
+			* pip install mysql-connector-python
+
+			- Optional (Windows): winsound; cross-platform: use playsound instead.
+
+		2. Threshold settings: Adjust GRADE_THRESHOLD and ABSENCE_THRESHOLD variables at top of script.
+
+		3. Run:
+			* py student_monitor.py
+
+			- Prompts for MySQL credentials.
+			- Alerts via desktop pop-ups (Tkinter) and beep.
+
+		4. Modify interval: Change CHECK_INTERVAL (seconds) to desired polling frequency.
+
+	----
+
+	9.3 bcrypt_password_hasher.py
+
+		1. Install:
+			* pip install mysql-connector-python bcrypt
+
+		2. Execution:
+			* py bcrypt_password_hasher.py
+
+			- Prompts for MySQL admin credentials.
+			- Scans Users table every 10 seconds for plain-text passwords.
+			- Rewrites them with bcrypt hash and logs actions to console.
+
+
+--------------------------------------------------
+
+Document authored by Isaiah Adams on 2025-05-05.
+
