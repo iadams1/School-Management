@@ -109,6 +109,6 @@ Required Python package:
 >
 >Email: IJAdams1@outlook.com
 
-Hi there! I'm Isaiah, a Computer Science major at Arkansas Tech University with a minor in Business Administration. My passion lies in developing meaningful software and database solutions that connect technology with real-world problems. Projects like this one allow me to apply database design, software development, automation, and security concepts in a practical environment while continuing to grow as a software engineer.
+Hi there! I'm Isaiah, a Graduate at Arkansas Tech University with Bachelors of Science in Computer Science. My passion lies in developing meaningful software and database solutions that connect technology with real-world problems. Projects like this one allow me to apply database design, software development, automation, and security concepts in a practical environment while continuing to grow as a software engineer.
 
 Feel free to reach out—I’d love to connect or answer any questions you may have.
